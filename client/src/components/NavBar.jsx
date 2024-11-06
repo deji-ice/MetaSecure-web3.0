@@ -2,13 +2,12 @@ import { useContext, useState } from "react";
 import logo from "../assets/images/logo.png";
 import { MdOutlineClose, MdOutlineMenu } from "react-icons/md";
 import { TransactionContext } from "../../context/TransactionsContext";
-import { fetchAddressAvatar, shortenAddress } from "../../utils/helpers";
 
 export const NavBar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navItems = ["Marketplace", "Services", "Transactions", "Wallet"];
-  const { currentAccount, avatarUrl } = useContext(TransactionContext);
-  console.log(avatarUrl);
+  const { currentAccount } = useContext(TransactionContext);
+
   return (
     <nav className="w-full flex justify-between md:px-28 2xl:px-[10%] items-center p-4">
       <div className="md:flex-[0.5] flex-initial justify-between lg:justify-center  items-center">
@@ -27,10 +26,16 @@ export const NavBar = () => {
             {item}
           </li>
         ))}
-        <li className="bg-blue-600 hover:bg-blue-500 py-2 px-7  rounded-2xl cursor-pointer">
-          Login
-        </li>
-        {currentAccount && (
+        {currentAccount ? (
+          <li className="bg-blue-600 hover:bg-blue-500 py-2 px-7  rounded-2xl cursor-pointer">
+            disconnect wallet
+          </li>
+        ) : (
+          <li className="bg-blue-600 hover:bg-blue-500 py-2 px-7  rounded-2xl cursor-pointer">
+            connect wallet
+          </li>
+        )}
+        {/* {currentAccount && (
           <li className="bg-blue-600 hover:bg-blue-500 flex justify-between items-center py-2 px-7  rounded-2xl cursor-pointer">
             <p>{shortenAddress(currentAccount)}</p>
             <img
@@ -39,7 +44,7 @@ export const NavBar = () => {
               className="w-10 h-10 rounded-full"
             />
           </li>
-        )}
+        )} */}
       </ul>
       <div className="flex md:hidden relative text-white">
         {isOpen ? (
