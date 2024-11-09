@@ -4,7 +4,6 @@ import axios from "axios";
 const apiKey = import.meta.env.VITE_GIPHY_API_KEY;
 const useFetch = ({ keyword }) => {
   const [gifUrl, setGifUrl] = useState("");
-  console.log(keyword);
 
   const getGifs = async () => {
     try {
