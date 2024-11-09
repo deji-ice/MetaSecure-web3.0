@@ -51,6 +51,7 @@ export const TransactionsProvider = ({ children }) => {
     keyword: "",
     message: "",
   });
+  const [avatarUrl, setAvatarUrl] = useState(null);
   console.log(formData);
   const handleChange = (e, name) => {
     const { value } = e.target;
@@ -73,6 +74,7 @@ export const TransactionsProvider = ({ children }) => {
       throw new Error("no ethereum object");
     }
   };
+  let acc = [];
   const connectWallet = async () => {
     try {
       if (!ethereum) return alert("Please install metamask");
@@ -81,11 +83,13 @@ export const TransactionsProvider = ({ children }) => {
       });
       setCurrentAccount(accounts[0]);
       console.log(accounts);
+      acc = accounts;
     } catch (error) {
       console.log(error);
       throw new Error("no ethereum object");
     }
   };
+  console.log(acc);
   const sendTransaction = async () => {
     try {
       const { addressTo, amount, keyword, message } = formData;
@@ -120,9 +124,35 @@ export const TransactionsProvider = ({ children }) => {
       console.log(error);
     }
   };
+  const getWalletAvatar = async (address) => {
+    const alchemyProvider = new ethers.providers.JsonRpcProvider(
+      import.meta.env.VITE_ALCHEMY_URL
+    );
+    console.log(import.meta.env.VITE_ALCHEMY_URL, alchemyProvider);
+    try {
+      const ensResolver = await alchemyProvider.lookupAddress(address);
+      console.log(ensResolver);
+      // const provider = new BrowserProvider(ethereum);
+
+      if (ensResolver) {
+        const avatar = await ensResolver.getAvatar();
+        setAvatarUrl(avatar);
+        return avatar;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching avatar:", error);
+      return null;
+    }
+  };
   useEffect(() => {
     checkIfWalletIsConnected();
   }, []);
+  // useEffect(() => {
+  //   if (currentAccount) {
+  //     getWalletAvatar(currentAccount);
+  //   }
+  // }, [currentAccount]);
   return (
     <TransactionContext.Provider
       value={{
@@ -132,6 +162,8 @@ export const TransactionsProvider = ({ children }) => {
         sendTransaction,
         formData,
         handleChange,
+        avatarUrl,
+        getWalletAvatar,
       }}
     >
       {children}
