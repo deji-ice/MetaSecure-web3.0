@@ -5,7 +5,7 @@ import ServiceCard from "./ServiceCard";
 
 const Services = () => {
   return (
-    <div className="flex w-full justify-center items-center gradient-bg-services ">
+    <div className="flex w-full flex-col lg:flex-row justify-center items-center gradient-bg-services ">
       <div className=" flex md:flex-row flex-col items-center justify-between md:p-20 py-12 px-4">
         <div className="flex-1 flex flex-col justify-start items-start">
           <h1 className="text-white text-3xl md:text-5xl py-2 text-gradient">
@@ -14,7 +14,13 @@ const Services = () => {
         </div>
       </div>
       <div className="flex-1 flex flex-col justify-start items-center">
-        <ServiceCard color={"#2952e3"} title={"Services Guaranteed"}/>
+        <ServiceCard
+          color="#2952e3"
+          title="Services Guaranteed"
+          icon={<BsShieldFillCheck fontSize={21} className="text-white" />}
+          subtitle="Security is guaranteed. We always maintain transparency and security of your transactions."
+        />
+
       </div>
     </div>
   );
