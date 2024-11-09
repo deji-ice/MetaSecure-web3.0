@@ -7,9 +7,9 @@ import { useEffect, useState, createContext } from "react";
 export const TransactionContext = createContext();
 const { ethereum } = window;
 
-const createEthereumContract = async () => {
+const fetchTransactionContract = async () => {
   if (!ethereum) {
-    console.log("MetaMask not installed; using read-only defaults");
+    // console.log("MetaMask not installed; using read-only defaults");
     provider = ethers.getDefaultProvider();
   }
   let signer = null;
@@ -30,19 +30,30 @@ const createEthereumContract = async () => {
       signer
     );
 
-    console.log({ provider, signer, transactionContract });
-    // return transactionContract; // Optional: Return contract instance if you need it outside the function
-
+    // console.log({ provider, signer, transactionContract });
     return transactionContract;
   } catch (error) {
     console.error("Error creating Ethereum contract:", error);
   }
 };
 
+const checkIfTransacionsExist = async () => {
+  try {
+    const transactionContract = await fetchTransactionContract();
+    const transactionCount = await transactionContract.getTransactionCount();
+    window.localStorage.setItem("transactionCount", transactionCount);
+    // console.log("transactionCount", transactionCount);
+    return transactionCount;
+  } catch (error) {
+    console.error("Error checking if transactions exist:", error);
+  }
+};
+
 export const TransactionsProvider = ({ children }) => {
   const [currentAccount, setCurrentAccount] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [transactionCount, setTransactionCount] = useState(
+  const [transactions, setTransactions] = useState([]);
+  const [setTransactionCount] = useState(
     localStorage.getItem("transactionCount")
   );
   const [formData, setFormData] = useState({
@@ -51,30 +62,58 @@ export const TransactionsProvider = ({ children }) => {
     keyword: "",
     message: "",
   });
-  const [avatarUrl, setAvatarUrl] = useState(null);
-  console.log(formData);
+  // const [avatarUrl, setAvatarUrl] = useState(null);
+  // console.log(formData);
   const handleChange = (e, name) => {
     const { value } = e.target;
-    console.log(name, value);
     setFormData({
       ...formData,
       [name]: value,
     });
+  };
+  const getAllTransaction = async () => {
+    try {
+      if (!ethereum) return alert("Please install metamask");
+      const transactionContract = await fetchTransactionContract();
+      const availableTransactions =
+        await transactionContract.getAllTransactions();
+      const structuredTransactions = availableTransactions.map(
+        (transaction) => {
+          return {
+            addressTo: transaction[1],
+            addressFrom: transaction[0],
+            amount: ethers.formatEther(transaction[2]),
+            message: transaction[3],
+            keyword: transaction[5],
+            timestamp: new Date(
+              parseInt(transaction[4]) * 1000
+            ).toLocaleString(),
+          };
+        }
+      );
+
+    //  console.log("structuredTransactions", structuredTransactions);
+      setTransactions(structuredTransactions);
+      // window.reload();
+    } catch (error) {
+      console.error("Error getting all transactions:", error);
+    }
   };
   const checkIfWalletIsConnected = async () => {
     try {
       const accounts = await ethereum.request({ method: "eth_accounts" });
       if (accounts.length > 0) {
         setCurrentAccount(accounts[0]);
+        getAllTransaction();
       } else {
-        console.log("No accounts found");
+        // console.log("No accounts found");
       }
-    } catch (error) {
-      console.log(error);
+    } catch {
+      // console.log(error);
       throw new Error("no ethereum object");
     }
   };
-  let acc = [];
+ 
   const connectWallet = async () => {
     try {
       if (!ethereum) return alert("Please install metamask");
@@ -82,18 +121,18 @@ export const TransactionsProvider = ({ children }) => {
         method: "eth_requestAccounts",
       });
       setCurrentAccount(accounts[0]);
-      console.log(accounts);
-      acc = accounts;
-    } catch (error) {
-      console.log(error);
+      // console.log(accounts);
+      
+    } catch {
+      // console.log(error);
       throw new Error("no ethereum object");
     }
   };
-  console.log(acc);
+
   const sendTransaction = async () => {
     try {
       const { addressTo, amount, keyword, message } = formData;
-      const transactionContract = await createEthereumContract();
+      const transactionContract = await fetchTransactionContract();
       const parsedAmount = ethers.parseEther(amount);
       await ethereum.request({
         method: "eth_sendTransaction",
@@ -113,46 +152,43 @@ export const TransactionsProvider = ({ children }) => {
         keyword
       );
       setLoading(true);
-      console.log(`Loading: ${transactionHash.hash}`);
+      // console.log(`Loading: ${transactionHash.hash}`);
       await transactionHash.wait();
       setLoading(false);
-      console.log(`Loading: ${transactionHash.hash}`);
+      // console.log(`Loading: ${transactionHash.hash}`);
 
       const transactionCount = await transactionContract.getTransactionCount();
       setTransactionCount(Number(transactionCount));
-    } catch (error) {
-      console.log(error);
+    } catch {
+      // console.log(error);
     }
   };
-  const getWalletAvatar = async (address) => {
-    const alchemyProvider = new ethers.providers.JsonRpcProvider(
-      import.meta.env.VITE_ALCHEMY_URL
-    );
-    console.log(import.meta.env.VITE_ALCHEMY_URL, alchemyProvider);
-    try {
-      const ensResolver = await alchemyProvider.lookupAddress(address);
-      console.log(ensResolver);
-      // const provider = new BrowserProvider(ethereum);
+  // const getWalletAvatar = async (address) => {
+  //   const alchemyProvider = new ethers.providers.JsonRpcProvider(
+  //     import.meta.env.VITE_ALCHEMY_URL
+  //   );
+  //   console.log(import.meta.env.VITE_ALCHEMY_URL, alchemyProvider);
+  //   try {
+  //     const ensResolver = await alchemyProvider.lookupAddress(address);
+  //     console.log(ensResolver);
+  //     // const provider = new BrowserProvider(ethereum);
 
-      if (ensResolver) {
-        const avatar = await ensResolver.getAvatar();
-        setAvatarUrl(avatar);
-        return avatar;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error fetching avatar:", error);
-      return null;
-    }
-  };
+  //     if (ensResolver) {
+  //       const avatar = await ensResolver.getAvatar();
+  //       setAvatarUrl(avatar);
+  //       return avatar;
+  //     }
+  //     return null;
+  //   } catch (error) {
+  //     console.error("Error fetching avatar:", error);
+  //     return null;
+  //   }
+  // };
   useEffect(() => {
     checkIfWalletIsConnected();
+    checkIfTransacionsExist();
   }, []);
-  // useEffect(() => {
-  //   if (currentAccount) {
-  //     getWalletAvatar(currentAccount);
-  //   }
-  // }, [currentAccount]);
+
   return (
     <TransactionContext.Provider
       value={{
@@ -162,8 +198,11 @@ export const TransactionsProvider = ({ children }) => {
         sendTransaction,
         formData,
         handleChange,
-        avatarUrl,
-        getWalletAvatar,
+        // avatarUrl,
+        // getWalletAvatar,
+        transactions,
+        loading,
+        setLoading,
       }}
     >
       {children}
