@@ -3,7 +3,6 @@ import useFetch from "../../hooks/useFetch";
 import { shortenAddress } from "../../utils/helpers";
 
 const TransactionCard = ({ transaction }) => {
-  console.log(transaction);
   const gifUrl = useFetch({ keyword: transaction.message });
   return (
     <div
@@ -33,6 +32,9 @@ const TransactionCard = ({ transaction }) => {
             </div>
             <p className="text-gray-300 text-sm">
               Amount: {transaction.amount} ETH
+            </p>
+            <p className="text-gray-300 text-sm">
+              Message: {transaction.message}
             </p>
           </div>
         </div>
