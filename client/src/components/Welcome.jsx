@@ -1,20 +1,20 @@
 import { SiEthereum } from "react-icons/si";
 import { BsInfoCircle } from "react-icons/bs";
 import Input from "./Input";
-import { useContext, useState } from "react";
+import { useContext } from "react";
 import Loader from "./Loader";
 import { TransactionContext } from "../../context/TransactionsContext";
 import { shortenAddress } from "../../utils/helpers";
 
 const Welcome = () => {
-  const [isLoading, setIsLoading] = useState(false);
-
   const {
     connectWallet,
     currentAccount,
     sendTransaction,
     handleChange,
     formData,
+    loading,
+    setLoading,
   } = useContext(TransactionContext);
 
   const commonStyles =
@@ -23,18 +23,18 @@ const Welcome = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData) return console.log("no form data");
+    if (!formData) return alert("no form data");
 
     const { addressTo, amount, keyword, message } = formData;
     if (!addressTo || !amount || !keyword || !message) return;
 
     try {
-      setIsLoading(true);
+      setLoading(true);
       sendTransaction();
     } catch (error) {
       console.error("Transaction failed:", error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -85,9 +85,7 @@ const Welcome = () => {
               ) : (
                 <p className="text-white font-light text-sm">Address</p>
               )}
-              <p className="text-white font-semibold text-lg mt-1">
-                  Ethereum
-                </p>
+              <p className="text-white font-semibold text-lg mt-1">Ethereum</p>
             </div>
           </div>
         </div>
@@ -121,7 +119,7 @@ const Welcome = () => {
             handleChange={handleChange}
           />
           <div className="h-[1px] w-full bg-gray-400 my-2"></div>
-          {isLoading ? (
+          {loading ? (
             <Loader />
           ) : (
             <button
