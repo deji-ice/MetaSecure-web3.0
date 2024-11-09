@@ -4,6 +4,7 @@ import Input from "./Input";
 import { useContext, useState } from "react";
 import Loader from "./Loader";
 import { TransactionContext } from "../../context/TransactionsContext";
+import { shortenAddress } from "../../utils/helpers";
 
 const Welcome = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -77,8 +78,16 @@ const Welcome = () => {
               <BsInfoCircle fontSize={17} color="#fff" />
             </div>
             <div>
-              <p className="text-white font-light text-sm">Address</p>
-              <p className="text-white font-semibold text-lg mt-1">Ethereum</p>
+              {currentAccount ? (
+                <p className="text-white font-semibold text-lg mt-1">
+                  {shortenAddress(currentAccount)}
+                </p>
+              ) : (
+                <p className="text-white font-light text-sm">Address</p>
+              )}
+              <p className="text-white font-semibold text-lg mt-1">
+                  Ethereum
+                </p>
             </div>
           </div>
         </div>
