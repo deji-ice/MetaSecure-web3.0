@@ -54,7 +54,9 @@ contract Transactions {
         view
         returns (TransferStruct[] memory)
     {
-        return transactions;
+        // Convert the array to a more structured format
+        TransferStruct[] memory allTransactions = transactions;
+        return allTransactions;
     }
     function getTransactionCount() public view returns (uint256) {
         return transactionCount;
