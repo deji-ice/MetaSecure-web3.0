@@ -9,15 +9,14 @@ export const NavBar = () => {
   const { currentAccount } = useContext(TransactionContext);
 
   return (
-    <nav className="w-full flex justify-between md:px-28 2xl:px-[10%] items-center p-4">
-      <div className="md:flex-[0.5] flex-initial justify-between lg:justify-center  items-center">
-        <img
-          src={logo}
-          alt="meta secure's logo"
-          className="w-32 md:w-24 lg:w-32 cursor-pointer"
-        />
-      </div>
-      <ul className="text-white md:flex list-none hidden gap-8 flex-row justify-between items-center flex-initial">
+    <nav className="w-full flex justify-between md:px-28 2xl:px-[10%] items-center lg:items-start p-4 lg:py-6">
+      <img
+        src={`https://res.cloudinary.com/dhvwthnzq/image/upload/v1733996898/meta_logo_pig0ve.png`}
+        alt="meta secure's logo"
+        className="w-24 lg:w-24 cursor-pointer"
+      />
+
+      <ul className="text-white md:flex list-none mt-3 hidden gap-8 flex-row justify-between items-center flex-initial">
         {navItems.map((item, index) => (
           <li
             key={index + index}
