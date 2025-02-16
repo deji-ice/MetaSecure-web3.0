@@ -6,8 +6,13 @@ export default {
     fontFamily: {
       display: ["Open Sans", "sans-serif"],
       body: ["Open Sans", "sans-serif"],
+      sans: ['Space Grotesk', 'sans-serif'],
+      mono: ['IBM Plex Mono', 'monospace'],
     },
     extend: {
+      backdropBlur: {
+        xs: '2px',
+      },
       screens: {
         mf: "990px",
       },
