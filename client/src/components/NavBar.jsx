@@ -1,91 +1,163 @@
-import { useContext, useState } from "react";
-import logo from "../assets/images/logo.png";
-import { MdOutlineClose, MdOutlineMenu } from "react-icons/md";
+import { useState, useEffect, useContext } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ethers } from "ethers";
+import {
+  FaHome,
+  FaHistory,
+  FaCog,
+  FaWallet,
+  FaBars,
+  FaTimes,
+  FaEthereum,
+} from "react-icons/fa";
 import { TransactionContext } from "../../context/TransactionsContext";
 
-export const NavBar = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const navItems = ["Marketplace", "Services", "Transactions", "Wallet"];
-  const { currentAccount } = useContext(TransactionContext);
+const NavBar = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [walletAddress, setWalletAddress] = useState("");
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  const {
+    connectWallet,
+    currentAccount,
+    sendTransaction,
+    handleChange,
+    formData,
+    loading,
+    setLoading,
+  } = useContext(TransactionContext);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // const connectWallet = async () => {
+  //   try {
+  //     if (!window.ethereum) throw new Error('No crypto wallet found');
+
+  //     const provider = new ethers.providers.Web3Provider(window.ethereum);
+  //     await provider.send('eth_requestAccounts', []);
+  //     const signer = provider.getSigner();
+  //     const address = await signer.getAddress();
+  //     setWalletAddress(address);
+  //   } catch (err) {
+  //     console.error('Wallet connection error:', err);
+  //   }
+  // };
+
+  const navItems = [
+    { name: "Home", icon: FaHome, href: "#" },
+    { name: "Transactions", icon: FaHistory, href: "#transactions" },
+    { name: "Settings", icon: FaCog, href: "#settings" },
+  ];
 
   return (
-    <nav className="w-full flex justify-between md:px-28 2xl:px-[10%] items-center lg:items-start p-4 lg:py-6">
-      <img
-        src={`https://res.cloudinary.com/dhvwthnzq/image/upload/v1733996898/meta_logo_pig0ve.png`}
-        alt="meta secure's logo"
-        className="w-24 lg:w-24 cursor-pointer"
-      />
+    <motion.nav
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      className={`fixed top-0 w-full
+        ${isScrolled ? "bg-black/90" : "bg-black/70"}
+        backdrop-blur-md
+        transition-all duration-300 ease-in-out
+        z-50 px-6 py-4 border-b border-white/10`}
+    >
+      <div className="flex items-center justify-between">
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          className="flex items-center space-x-2"
+        >
+          <FaEthereum className="text-2xl text-white" />
+          <span className="text-xl font-bold text-white font-mono">
+            MetaSecure
+          </span>
+        </motion.div>
 
-      <ul className="text-white md:flex list-none mt-3 hidden gap-8 flex-row justify-between items-center flex-initial">
-        {navItems.map((item, index) => (
-          <li
-            key={index + index}
-            className="cursor-pointer  hover:text-gray-400"
+        <div className="hidden md:flex items-center space-x-8">
+          {navItems.map((item) => (
+            <motion.a
+              key={item.name}
+              href={item.href}
+              whileHover={{ scale: 1.05 }}
+              className="flex items-center space-x-1 text-gray-400 hover:text-white transition-colors"
+            >
+              <item.icon className="text-lg" />
+              <span className="font-sans">{item.name}</span>
+            </motion.a>
+          ))}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={connectWallet}
+            className="flex items-center space-x-2 px-4 py-2 bg-white
+              text-black hover:bg-neutral-200 transition-all duration-200"
           >
-            {item}
-          </li>
-        ))}
-        {currentAccount ? (
-          <li className="bg-blue-600 hover:bg-blue-500 py-2 px-7  rounded-2xl cursor-pointer">
-            disconnect wallet
-          </li>
-        ) : (
-          <li className="bg-blue-600 hover:bg-blue-500 py-2 px-7  rounded-2xl cursor-pointer">
-            connect wallet
-          </li>
-        )}
-        {/* {currentAccount && (
-          <li className="bg-blue-600 hover:bg-blue-500 flex justify-between items-center py-2 px-7  rounded-2xl cursor-pointer">
-            <p>{shortenAddress(currentAccount)}</p>
-            <img
-              src={avatarUrl}
-              alt="address avatar"
-              className="w-10 h-10 rounded-full"
-            />
-          </li>
-        )} */}
-      </ul>
-      <div className="flex md:hidden relative text-white">
-        {isOpen ? (
-          <MdOutlineClose
-            fontSize={28}
-            className="text-white md:hidden cursor-pointer"
-            onClick={() => setIsOpen(false)}
-          />
-        ) : (
-          <MdOutlineMenu
-            fontSize={28}
-            className="text-white md:hidden cursor-pointer"
-            onClick={() => setIsOpen(true)}
-          />
-        )}
-        {isOpen && (
-          <ul
-            className="fixed h-screen w-[70vw] shadow-2xl list-none z-10 top-0 right-0
-          flex flex-col justify-start items-end p-3 md:hidden blue-glassmorphism animate-slide-in
-         bg-blue-600 text-white rounded-sm"
-          >
-            <li className="text-xl w-full my-2">
-              <MdOutlineClose
-                fontSize={28}
-                className=""
-                onClick={() => setIsOpen(false)}
-              />
-            </li>
-            {navItems.map((item, index) => (
-              <li
-                key={index + index}
-                className="cursor-pointer my-2 text-lg hover:text-gray-400"
-              >
-                {item}
-              </li>
-            ))}
-            {/* <li className="bg-blue-600 hover:bg-blue-500 py-2 px-7  rounded-2xl cursor-pointer">
-              Login
-            </li> */}
-          </ul>
-        )}
+            <FaWallet className="text-lg" />
+            <span className="font-mono">
+              {walletAddress
+                ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`
+                : "Connect Wallet"}
+            </span>
+          </motion.button>
+        </div>
+
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          className="md:hidden text-white"
+        >
+          {isMenuOpen ? (
+            <FaTimes className="text-xl" />
+          ) : (
+            <FaBars className="text-xl" />
+          )}
+        </motion.button>
       </div>
-    </nav>
+
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="md:hidden mt-4"
+          >
+            <div className="flex flex-col space-y-4">
+              {navItems.map((item) => (
+                <motion.a
+                  key={item.name}
+                  href={item.href}
+                  whileHover={{ x: 5 }}
+                  className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  <item.icon className="text-lg" />
+                  <span className="font-sans">{item.name}</span>
+                </motion.a>
+              ))}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={connectWallet}
+                className="flex items-center space-x-2 px-4 py-2 bg-white
+                  text-black hover:bg-neutral-200 transition-all duration-200"
+              >
+                <FaWallet className="text-lg" />
+                <span className="font-mono">
+                  {walletAddress
+                    ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(
+                        -4
+                      )}`
+                    : "Connect Wallet"}
+                </span>
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.nav>
   );
 };
+
+export default NavBar;
