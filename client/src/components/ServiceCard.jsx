@@ -1,24 +1,23 @@
 import PropTypes from "prop-types";
+import { motion } from "framer-motion";
 
-const ServiceCard = ({ color, title, icon, subtitle }) => {
-  return (
-    <div className="flex flex-col md:flex-row justify-normal items-center white-glassmorphism p-6 m-3 cursor-pointer hover:shadow-xl transition-shadow duration-300 ease-in-out">
-      <div
-        style={{ backgroundColor: color }}
-        className="w-12 h-12 md:w-10 md:h-10 rounded-full flex justify-center items-center mb-4 md:mb-0 md:mr-4"
-      >
+const ServiceCard = ({ icon, title, subtitle }) => (
+  <motion.div
+    whileHover={{ scale: 1.03 }}
+    className="flex flex-col p-6 rounded-2xl bg-white/5 backdrop-blur-sm
+      border border-white/10 hover:border-white/20 transition-all duration-300"
+  >
+    <div className="flex items-center mb-5">
+      <div className="w-10 h-10 rounded-full flex justify-center items-center bg-black/40">
         {icon}
       </div>
-      <div className="  flex flex-col flex-1 text-center md:text-left">
-        <h3 className="text-white text-xl md:text-lg font-semibold">{title}</h3>
-        <p className="text-white text-base md:text-sm mt-2">{subtitle}</p>
-      </div>
+      <h3 className="text-white text-xl font-medium ml-3">{title}</h3>
     </div>
-  );
-};
+    <p className="text-neutral-400 mt-2 text-base">{subtitle}</p>
+  </motion.div>
+);
 
 ServiceCard.propTypes = {
-  color: PropTypes.string.isRequired,
   title: PropTypes.string.isRequired,
   icon: PropTypes.element.isRequired,
   subtitle: PropTypes.string.isRequired,
