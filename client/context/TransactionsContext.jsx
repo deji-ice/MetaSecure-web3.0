@@ -36,8 +36,8 @@ const fetchTransactionContract = async () => {
     const signer = await provider.getSigner();
 
     // Debug logging
-    console.log("Contract Address:", CONTRACT_ADDRESS);
-    console.log("Contract ABI available:", !!CONTRACT_ABI);
+    // console.log("Contract Address:", CONTRACT_ADDRESS);
+    // console.log("Contract ABI available:", !!CONTRACT_ABI);
 
     const transactionContract = new ethers.Contract(
       CONTRACT_ADDRESS,
@@ -158,7 +158,6 @@ export const TransactionsProvider = ({ children }) => {
       } else {
         toast.dismiss(connectingToast);
         toast.error("No accounts found or access denied", toastStyle.error);
-        console.log("No accounts found or user denied access");
       }
     } catch (error) {
       console.error("Error connecting wallet:", error);
@@ -264,8 +263,6 @@ export const TransactionsProvider = ({ children }) => {
 
       toast.dismiss(disconnectToast);
       toast.success("Wallet disconnected", toastStyle.success);
-
-      console.log("Wallet disconnected from application");
     } catch (error) {
       console.error("Error disconnecting wallet:", error);
       toast.dismiss(disconnectToast);
@@ -278,7 +275,6 @@ export const TransactionsProvider = ({ children }) => {
     if (ethereum) {
       const handleAccountsChanged = (accounts) => {
         if (accounts.length > 0) {
-          console.log("Account changed:", accounts[0]);
           setCurrentAccount(accounts[0]);
           toast.success(
             `Switched to account: ${accounts[0].slice(
