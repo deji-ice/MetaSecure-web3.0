@@ -29,9 +29,15 @@ const toastStyle = {
 const fetchTransactionContract = async () => {
   try {
     if (!ethereum) throw new Error("No ethereum object");
+    if (!CONTRACT_ADDRESS) throw new Error("Contract address is not defined");
+    if (!CONTRACT_ABI) throw new Error("Contract ABI is not defined");
 
     const provider = new BrowserProvider(ethereum);
     const signer = await provider.getSigner();
+
+    // Debug logging
+    console.log("Contract Address:", CONTRACT_ADDRESS);
+    console.log("Contract ABI available:", !!CONTRACT_ABI);
 
     const transactionContract = new ethers.Contract(
       CONTRACT_ADDRESS,
@@ -42,6 +48,10 @@ const fetchTransactionContract = async () => {
     return transactionContract;
   } catch (error) {
     console.error("Error creating Ethereum contract:", error);
+    toast.error(
+      `Contract connection failed: ${error.message}`,
+      toastStyle.error
+    );
     throw error;
   }
 };
@@ -79,34 +89,38 @@ export const TransactionsProvider = ({ children }) => {
     });
   };
 
-  const getAllTransaction = useCallback(async () => {
-    try {
-      if (!ethereum) throw new Error("Please install MetaMask");
-      if (!currentAccount) throw new Error("No account connected");
+  const getAllTransaction = useCallback(
+    async (account = null) => {
+      try {
+        const accountToUse = account || currentAccount;
 
-      const transactionContract = await fetchTransactionContract();
-      const availableTransactions =
-        await transactionContract.getAllTransactions();
+        if (!ethereum) throw new Error("Please install MetaMask");
+        if (!accountToUse) throw new Error("No account connected");
 
-      const structuredTransactions = availableTransactions.map(
-        (transaction) => ({
-          addressTo: transaction[1],
-          addressFrom: transaction[0],
-          amount: ethers.formatEther(transaction[2]),
-          message: transaction[3],
-          keyword: transaction[5],
-          timestamp: new Date(Number(transaction[4]) * 1000).toLocaleString(),
-        })
-      );
+        const transactionContract = await fetchTransactionContract();
+        const availableTransactions =
+          await transactionContract.getAllTransactions();
 
-      setTransactions(structuredTransactions);
-      return structuredTransactions;
-    } catch (error) {
-      console.error("Error fetching transactions:", error);
-      // Don't throw here - just catch and log
-      return [];
-    }
-  }, [currentAccount]);
+        const structuredTransactions = availableTransactions.map(
+          (transaction) => ({
+            addressTo: transaction[1],
+            addressFrom: transaction[0],
+            amount: ethers.formatEther(transaction[2]),
+            message: transaction[3],
+            keyword: transaction[5],
+            timestamp: new Date(Number(transaction[4]) * 1000).toLocaleString(),
+          })
+        );
+
+        setTransactions(structuredTransactions);
+        return structuredTransactions;
+      } catch (error) {
+        console.error("Error fetching transactions:", error);
+        return [];
+      }
+    },
+    [currentAccount]
+  );
 
   const connectWallet = async () => {
     const connectingToast = toast.loading("Connecting wallet...", toastStyle);
@@ -134,8 +148,13 @@ export const TransactionsProvider = ({ children }) => {
           )}`,
           toastStyle.success
         );
-        // Only try to get transactions if we have a connected account
-        await getAllTransaction();
+
+        // FIXED: Pass the account directly instead of relying on state
+        try {
+          await getAllTransaction(accounts[0]);
+        } catch (error) {
+          console.error("Error fetching initial transactions:", error);
+        }
       } else {
         toast.dismiss(connectingToast);
         toast.error("No accounts found or access denied", toastStyle.error);
@@ -149,6 +168,7 @@ export const TransactionsProvider = ({ children }) => {
   };
 
   const sendTransaction = async () => {
+    let pendingToast;
     try {
       if (!ethereum) throw new Error("No ethereum object");
 
@@ -162,10 +182,7 @@ export const TransactionsProvider = ({ children }) => {
       const parsedAmount = ethers.parseEther(amount);
 
       // Show processing toast
-      const pendingToast = toast.loading(
-        "Processing transaction...",
-        toastStyle
-      );
+      pendingToast = toast.loading("Processing transaction...", toastStyle);
 
       // First send the transaction
       const transactionParameters = {
@@ -198,7 +215,7 @@ export const TransactionsProvider = ({ children }) => {
         transactionCount.toString()
       );
       setTransactionCount(Number(transactionCount));
-      await getAllTransaction(); // Refresh transactions list
+      await getAllTransaction(currentAccount); // Refresh transactions list
 
       setLoading(false);
       setFormData({ addressTo: "", amount: "", keyword: "", message: "" }); // Reset form
@@ -216,6 +233,11 @@ export const TransactionsProvider = ({ children }) => {
     } catch (error) {
       console.error("Transaction error:", error);
       setLoading(false);
+
+      // Dismiss pending toast if it exists
+      if (pendingToast) toast.dismiss(pendingToast);
+
+      // Show error message
       toast.error(error.message || "Transaction failed", toastStyle.error);
       throw error;
     }
@@ -265,7 +287,7 @@ export const TransactionsProvider = ({ children }) => {
             )}...${accounts[0].slice(-4)}`,
             toastStyle.success
           );
-          getAllTransaction();
+          getAllTransaction(accounts[0]);
         } else {
           // User disconnected their wallet
           setCurrentAccount(null);
