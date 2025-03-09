@@ -8,8 +8,10 @@ import { Toaster } from "react-hot-toast";
 
 function App() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[#0A0A0A]">
       <Toaster position="top-right" />
+      {/* Background Pattern */}
+      <div className="fixed inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:24px_24px]" />
       <header className="gradient-bg-welcome">
         <NavBar />
         <Welcome />
