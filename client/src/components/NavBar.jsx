@@ -1,6 +1,5 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ethers } from "ethers";
 import {
   FaHome,
   FaHistory,
@@ -9,23 +8,48 @@ import {
   FaBars,
   FaTimes,
   FaEthereum,
+  FaSignOutAlt,
 } from "react-icons/fa";
 import { TransactionContext } from "../../context/TransactionsContext";
+// import Jazzicon, { jsNumberForAddress } from "react-jazzicon";
 
 const NavBar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [walletAddress, setWalletAddress] = useState("");
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
 
-  const {
-    connectWallet,
-    currentAccount,
-    sendTransaction,
-    handleChange,
-    formData,
-    loading,
-    setLoading,
-  } = useContext(TransactionContext);
+  const { connectWallet, disconnectWallet, currentAccount } =
+    useContext(TransactionContext);
+
+  // Generate emoji avatar based on wallet address
+  const walletEmoji = useMemo(() => {
+    if (!currentAccount) return "👽";
+
+    // Use address to deterministically select an emoji
+    const emojiList = [
+      "🤖",
+      "👾",
+      "🦊",
+      "🐱",
+      "🐼",
+      "🦁",
+      "🐵",
+      "🐻",
+      "🐯",
+      "🐺",
+      "🦄",
+      "🐲",
+      "🐉",
+      "🦖",
+      "🦕",
+    ];
+    const addressNum = parseInt(currentAccount.slice(2, 10), 16);
+    const emojiIndex = addressNum % emojiList.length;
+
+    return emojiList[emojiIndex];
+  }, [currentAccount]);
+
+  // const jazziconSeed = currentAccount ? jsNumberForAddress(currentAccount) : 0;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -35,19 +59,12 @@ const NavBar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // const connectWallet = async () => {
-  //   try {
-  //     if (!window.ethereum) throw new Error('No crypto wallet found');
-
-  //     const provider = new ethers.providers.Web3Provider(window.ethereum);
-  //     await provider.send('eth_requestAccounts', []);
-  //     const signer = provider.getSigner();
-  //     const address = await signer.getAddress();
-  //     setWalletAddress(address);
-  //   } catch (err) {
-  //     console.error('Wallet connection error:', err);
-  //   }
-  // };
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setShowDropdown(false);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const navItems = [
     { name: "Home", icon: FaHome, href: "#" },
@@ -65,7 +82,7 @@ const NavBar = () => {
         transition-all duration-300 ease-in-out
         z-50 px-6 py-4 border-b border-white/10`}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex lg:px-10 items-center justify-between">
         <motion.div
           whileHover={{ scale: 1.05 }}
           className="flex items-center space-x-2"
@@ -88,20 +105,67 @@ const NavBar = () => {
               <span className="font-sans">{item.name}</span>
             </motion.a>
           ))}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={connectWallet}
-            className="flex items-center space-x-2 px-4 py-2 bg-white
-              text-black hover:bg-neutral-200 transition-all duration-200"
-          >
-            <FaWallet className="text-lg" />
-            <span className="font-mono">
-              {walletAddress
-                ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`
-                : "Connect Wallet"}
-            </span>
-          </motion.button>
+
+          {/* Wallet Connection Section */}
+          {!currentAccount ? (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={connectWallet}
+              className="flex items-center space-x-2 px-4 py-2 bg-white
+                text-black hover:bg-neutral-200 transition-all duration-200"
+            >
+              <FaWallet className="text-lg" />
+              <span className="font-mono">Connect Wallet</span>
+            </motion.button>
+          ) : (
+            <div className="relative">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDropdown(!showDropdown);
+                }}
+                className="flex items-center space-x-2 px-4 py-2 bg-white/5 border border-white/10
+                  text-white hover:bg-white/10 transition-all duration-200"
+              >
+                {/* Blockie Avatar */}
+                <div className="flex items-center justify-center text-xl">
+                  {walletEmoji}
+                </div>
+                <span className="font-mono">
+                  {`${currentAccount.slice(0, 4)}...${currentAccount.slice(
+                    -4
+                  )}`}
+                </span>
+              </motion.button>
+
+              {/* Dropdown Menu */}
+              <AnimatePresence>
+                {showDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute right-0 mt-2 w-full bg-black border border-white/10 shadow-lg"
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        disconnectWallet();
+                        setShowDropdown(false);
+                      }}
+                      className="w-full flex items-center space-x-2 px-4 py-3 text-white hover:bg-white/10 transition-all"
+                    >
+                      <FaSignOutAlt className="text-red-400" />
+                      <span>Disconnect</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
 
         <motion.button
@@ -125,7 +189,7 @@ const NavBar = () => {
             exit={{ opacity: 0, height: 0 }}
             className="md:hidden mt-4"
           >
-            <div className="flex flex-col space-y-4">
+            <div className="flex flex-col gap-6 my-8">
               {navItems.map((item) => (
                 <motion.a
                   key={item.name}
@@ -137,21 +201,43 @@ const NavBar = () => {
                   <span className="font-sans">{item.name}</span>
                 </motion.a>
               ))}
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={connectWallet}
-                className="flex items-center space-x-2 px-4 py-2 bg-white
-                  text-black hover:bg-neutral-200 transition-all duration-200"
-              >
-                <FaWallet className="text-lg" />
-                <span className="font-mono">
-                  {walletAddress
-                    ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(
+
+              {/* Mobile Wallet Connection */}
+              {!currentAccount ? (
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={connectWallet}
+                  className="flex items-center space-x-2 px-4 py-2 bg-white
+                    text-black hover:bg-neutral-200 transition-all duration-200"
+                >
+                  <FaWallet className="text-lg" />
+                  <span className="font-mono">Connect Wallet</span>
+                </motion.button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2 px-4 py-2 bg-white/5 border border-white/10">
+                    <div className="flex items-center justify-center text-xl">
+                      {walletEmoji}
+                    </div>
+                    {/* <Jazzicon diameter={20} seed={jazziconSeed} /> */}
+                    <span className="font-mono text-white">
+                      {`${currentAccount.slice(0, 4)}...${currentAccount.slice(
                         -4
-                      )}`
-                    : "Connect Wallet"}
-                </span>
-              </motion.button>
+                      )}`}
+                    </span>
+                  </div>
+
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={disconnectWallet}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-2 
+                      border border-white/10 text-red-400 hover:bg-white/5 transition-all"
+                  >
+                    <FaSignOutAlt />
+                    <span>Disconnect Wallet</span>
+                  </motion.button>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
