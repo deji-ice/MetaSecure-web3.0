@@ -6,12 +6,13 @@ export default {
     fontFamily: {
       display: ["Open Sans", "sans-serif"],
       body: ["Open Sans", "sans-serif"],
-      sans: ['Space Grotesk', 'sans-serif'],
-      mono: ['IBM Plex Mono', 'monospace'],
+      sans: ["Space Grotesk", "sans-serif"],
+      mono: ["IBM Plex Mono", "monospace"],
+      afacad: ["Afacad Flux", "sans-serif"],
     },
     extend: {
       backdropBlur: {
-        xs: '2px',
+        xs: "2px",
       },
       screens: {
         mf: "990px",
