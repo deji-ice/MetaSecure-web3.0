@@ -5,6 +5,7 @@ import Services from "./components/Services";
 import Transactions from "./components/Transactions";
 import Welcome from "./components/Welcome";
 import { Toaster } from "react-hot-toast";
+import { Analytics } from '@vercel/analytics/react';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
       <Services />
       <Transactions />
       <Footer />
+      <Analytics />
     </div>
   );
 }
