@@ -7,6 +7,18 @@ import { useEffect, useState, createContext, useCallback } from "react";
 export const TransactionContext = createContext();
 const { ethereum } = window;
 
+// Network mapping
+const networkNames = {
+  "0x1": "Ethereum Mainnet",
+  "0x5": "Goerli Testnet",
+  "0xaa36a7": "Sepolia Testnet",
+  "0x89": "Polygon Mainnet",
+  "0xa4b1": "Arbitrum One",
+  "0xa": "Optimism",
+  "0x2105": "Base",
+  // Add more networks as needed
+};
+
 // Custom toast styling that matches your theme
 const toastStyle = {
   style: {
@@ -71,6 +83,7 @@ export const TransactionsProvider = ({ children }) => {
   const [currentAccount, setCurrentAccount] = useState(null);
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
+  const [currentNetwork, setCurrentNetwork] = useState(null);
   const [transactionCount, setTransactionCount] = useState(
     localStorage.getItem("transactionCount") || "0"
   );
@@ -80,6 +93,23 @@ export const TransactionsProvider = ({ children }) => {
     keyword: "",
     message: "",
   });
+
+  // Function to get current network
+  const getNetwork = async () => {
+    try {
+      if (!ethereum) return null;
+
+      const chainId = await ethereum.request({ method: "eth_chainId" });
+      const networkName =
+        networkNames[chainId] || `Chain ID: ${parseInt(chainId, 16)}`;
+
+      setCurrentNetwork(networkName);
+      return networkName;
+    } catch (error) {
+      console.error("Error getting network:", error);
+      return null;
+    }
+  };
 
   const handleChange = (e, name) => {
     const { value } = e.target;
@@ -141,6 +171,8 @@ export const TransactionsProvider = ({ children }) => {
 
       if (accounts && accounts.length > 0) {
         setCurrentAccount(accounts[0]);
+        await getNetwork(); // Get and set the network
+
         toast.dismiss(connectingToast);
         toast.success(
           `Wallet connected: ${accounts[0].slice(0, 6)}...${accounts[0].slice(
@@ -271,11 +303,23 @@ export const TransactionsProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // No auto-connection logic here - just account change detection
+    // Listen for network changes
     if (ethereum) {
+      const handleChainChanged = (chainId) => {
+        const networkName =
+          networkNames[chainId] || `Chain ID: ${parseInt(chainId, 16)}`;
+        setCurrentNetwork(networkName);
+        toast.success(`Network changed to ${networkName}`, toastStyle.success);
+
+        // Refresh page as recommended by MetaMask
+        window.location.reload();
+      };
+
       const handleAccountsChanged = (accounts) => {
         if (accounts.length > 0) {
           setCurrentAccount(accounts[0]);
+          getNetwork(); // Get the current network when account changes
+
           toast.success(
             `Switched to account: ${accounts[0].slice(
               0,
@@ -293,10 +337,12 @@ export const TransactionsProvider = ({ children }) => {
       };
 
       ethereum.on("accountsChanged", handleAccountsChanged);
+      ethereum.on("chainChanged", handleChainChanged);
 
-      // Initialize transaction count from localStorage
+      // Initialize network and transaction count
       const initData = async () => {
         try {
+          await getNetwork();
           await checkIfTransacionsExist();
         } catch (error) {
           console.error("Init error:", error);
@@ -307,6 +353,7 @@ export const TransactionsProvider = ({ children }) => {
 
       return () => {
         ethereum.removeListener("accountsChanged", handleAccountsChanged);
+        ethereum.removeListener("chainChanged", handleChainChanged);
       };
     }
   }, [getAllTransaction]);
@@ -315,7 +362,7 @@ export const TransactionsProvider = ({ children }) => {
     <TransactionContext.Provider
       value={{
         connectWallet,
-        disconnectWallet, // Add this new function
+        disconnectWallet,
         currentAccount,
         formData,
         setFormData,
@@ -326,6 +373,7 @@ export const TransactionsProvider = ({ children }) => {
         setLoading,
         getAllTransaction,
         transactionCount,
+        currentNetwork,
       }}
     >
       {children}
