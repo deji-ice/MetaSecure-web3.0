@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { useEffect, useState, createContext, useCallback } from "react";
 
 export const TransactionContext = createContext();
-const { ethereum } = window;
+const { ethereum } = typeof window !== "undefined" ? window : {};
 
 // Network mapping
 const networkNames = {
@@ -46,10 +46,6 @@ const fetchTransactionContract = async () => {
 
     const provider = new BrowserProvider(ethereum);
     const signer = await provider.getSigner();
-
-    // Debug logging
-    // console.log("Contract Address:", CONTRACT_ADDRESS);
-    // console.log("Contract ABI available:", !!CONTRACT_ABI);
 
     const transactionContract = new ethers.Contract(
       CONTRACT_ADDRESS,
@@ -155,13 +151,41 @@ export const TransactionsProvider = ({ children }) => {
   const connectWallet = async () => {
     const connectingToast = toast.loading("Connecting wallet...", toastStyle);
     try {
+      // Check if we're on mobile
+      const isMobile =
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        );
+
       if (!ethereum) {
         toast.dismiss(connectingToast);
-        toast.error(
-          "Please install an Ethereum wallet like MetaMask",
-          toastStyle.error
-        );
-        return;
+
+        if (isMobile) {
+          // For mobile: Open MetaMask app or app store
+          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+          // Create deep links based on device
+          if (isIOS) {
+            window.location.href =
+              "https://metamask.app.link/dapp/" +
+              window.location.hostname +
+              window.location.pathname;
+          } else {
+            window.location.href = "https://metamask.io/download.html";
+          }
+
+          toast.error(
+            "Please open this site in your wallet's browser",
+            toastStyle.error
+          );
+          return;
+        } else {
+          toast.error(
+            "Please install an Ethereum wallet like MetaMask",
+            toastStyle.error
+          );
+          return;
+        }
       }
 
       // Request wallet connection
@@ -181,7 +205,6 @@ export const TransactionsProvider = ({ children }) => {
           toastStyle.success
         );
 
-        // FIXED: Pass the account directly instead of relying on state
         try {
           await getAllTransaction(accounts[0]);
         } catch (error) {
@@ -194,7 +217,19 @@ export const TransactionsProvider = ({ children }) => {
     } catch (error) {
       console.error("Error connecting wallet:", error);
       toast.dismiss(connectingToast);
-      toast.error("Failed to connect wallet", toastStyle.error);
+
+      // Special handling for mobile connection errors
+      const userRejected =
+        error.code === 4001 || error.message?.includes("User rejected");
+
+      if (userRejected) {
+        toast.error("Connection rejected by user", toastStyle.error);
+      } else {
+        toast.error(
+          "Failed to connect wallet. Try opening in a wallet browser.",
+          toastStyle.error
+        );
+      }
     }
   };
 

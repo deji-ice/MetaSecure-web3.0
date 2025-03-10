@@ -218,16 +218,22 @@ const NavBar = () => {
 
               {/* Mobile Wallet Connection */}
               {!currentAccount ? (
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={connectWallet}
-                  className="flex items-center justify-center space-x-2 px-4 py-3
-                    bg-gradient-to-r from-white to-gray-200 text-black 
-                    font-medium rounded-lg shadow-lg"
-                >
-                  <FaWallet className="text-lg" />
-                  <span className="font-mono">Connect Wallet</span>
-                </motion.button>
+                <div className="space-y-3">
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={connectWallet}
+                    className="flex items-center justify-center space-x-2 px-4 py-3
+                      bg-gradient-to-r from-white to-gray-200 text-black 
+                      font-medium rounded-lg shadow-lg w-full"
+                  >
+                    <FaWallet className="text-lg" />
+                    <span className="font-mono">Connect Wallet</span>
+                  </motion.button>
+                  <p className="text-xs text-neutral-400 text-center">
+                    For mobile, open this site in your wallet&lsquo;s browser for best
+                    experience
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-3">
                   <div
