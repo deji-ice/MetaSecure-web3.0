@@ -1,8 +1,8 @@
-/* eslint-disable react/prop-types */
 import { BrowserProvider, ethers } from "ethers";
 import { CONTRACT_ABI, CONTRACT_ADDRESS } from "../utils/constants";
 import toast from "react-hot-toast";
 import { useEffect, useState, createContext, useCallback } from "react";
+import PropTypes from "prop-types";
 
 export const TransactionContext = createContext();
 const { ethereum } = typeof window !== "undefined" ? window : {};
@@ -16,26 +16,37 @@ const networkNames = {
   "0xa4b1": "Arbitrum One",
   "0xa": "Optimism",
   "0x2105": "Base",
-  // Add more networks as needed
 };
 
-// Custom toast styling that matches your theme
+// Toast styling
 const toastStyle = {
   style: {
     background: "#1f1f1f",
     color: "#fff",
-    border: "1px solid rgba(255, 255, 255, 0.1)",
+    border: "1px solid rgba(255,255,255,0.1)",
     backdropFilter: "blur(10px)",
     fontFamily: "'IBM Plex Mono', monospace",
   },
-  success: {
-    icon: "🔗",
-    duration: 4000,
-  },
-  error: {
-    icon: "❌",
-    duration: 4000,
-  },
+  success: { icon: "🔗", duration: 4000 },
+  error: { icon: "❌", duration: 4000 },
+};
+
+// Helper to produce friendly error messages
+const getFriendlyError = (error, defaultMsg) => {
+  if (
+    error.code === -32002 ||
+    (error.message &&
+      error.message.includes("Already processing eth_requestAccounts"))
+  ) {
+    return "Wallet connection request is already in progress. Please check your wallet.";
+  }
+  if (
+    error.code === 4001 ||
+    (error.message && error.message.includes("User rejected"))
+  ) {
+    return "Wallet connection was rejected by the user.";
+  }
+  return defaultMsg;
 };
 
 const fetchTransactionContract = async () => {
@@ -46,32 +57,26 @@ const fetchTransactionContract = async () => {
 
     const provider = new BrowserProvider(ethereum);
     const signer = await provider.getSigner();
-
-    const transactionContract = new ethers.Contract(
-      CONTRACT_ADDRESS,
-      CONTRACT_ABI,
-      signer
-    );
-
-    return transactionContract;
+    return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
   } catch (error) {
-    console.error("Error creating Ethereum contract:", error);
-    toast.error(
-      `Contract connection failed: ${error.message}`,
-      toastStyle.error
+    const msg = getFriendlyError(
+      error,
+      "Unable to connect to the contract. Please try again later."
     );
+    console.error("Error creating Ethereum contract:", error);
+    toast.error(msg, toastStyle.error);
     throw error;
   }
 };
 
-const checkIfTransacionsExist = async () => {
+const checkIfTransactionsExist = async () => {
   try {
-    const transactionContract = await fetchTransactionContract();
-    const transactionCount = await transactionContract.getTransactionCount();
-    window.localStorage.setItem("transactionCount", transactionCount);
-    return transactionCount;
+    const contract = await fetchTransactionContract();
+    const count = await contract.getTransactionCount();
+    window.localStorage.setItem("transactionCount", count);
+    return count;
   } catch (error) {
-    console.error("Error checking if transactions exist:", error);
+    console.error("Error checking transactions:", error);
   }
 };
 
@@ -90,15 +95,13 @@ export const TransactionsProvider = ({ children }) => {
     message: "",
   });
 
-  // Function to get current network
+  // Get current network
   const getNetwork = async () => {
     try {
       if (!ethereum) return null;
-
       const chainId = await ethereum.request({ method: "eth_chainId" });
       const networkName =
         networkNames[chainId] || `Chain ID: ${parseInt(chainId, 16)}`;
-
       setCurrentNetwork(networkName);
       return networkName;
     } catch (error) {
@@ -107,41 +110,57 @@ export const TransactionsProvider = ({ children }) => {
     }
   };
 
-  const handleChange = (e, name) => {
-    const { value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-  };
+  const handleChange = (e, name) =>
+    setFormData({ ...formData, [name]: e.target.value });
 
   const getAllTransaction = useCallback(
     async (account = null) => {
       try {
         const accountToUse = account || currentAccount;
-
         if (!ethereum) throw new Error("Please install MetaMask");
         if (!accountToUse) throw new Error("No account connected");
 
-        const transactionContract = await fetchTransactionContract();
-        const availableTransactions =
-          await transactionContract.getAllTransactions();
+        const contract = await fetchTransactionContract();
+        const rawTransactions = await contract.getAllTransactions();
+        console.log("Raw transactions:", rawTransactions);
 
-        const structuredTransactions = availableTransactions.map(
-          (transaction) => ({
-            addressTo: transaction[1],
-            addressFrom: transaction[0],
-            amount: ethers.formatEther(transaction[2]),
-            message: transaction[3],
-            keyword: transaction[5],
-            timestamp: new Date(Number(transaction[4]) * 1000).toLocaleString(),
+        if (!rawTransactions || rawTransactions.length === 0) {
+          setTransactions([]);
+          return [];
+        }
+
+        // Format transactions
+        const formatted = rawTransactions
+          .map((tx) => {
+            try {
+              return {
+                addressFrom: tx[0].toLowerCase(),
+                addressTo: tx[1].toLowerCase(),
+                amount: ethers.formatEther(tx[2]),
+                message: tx[3] || "",
+                timestamp: new Date(Number(tx[4]) * 1000).toLocaleString(),
+                keyword: tx[5] || "",
+              };
+            } catch (error) {
+              console.error("Error parsing transaction:", error, tx);
+              return null;
+            }
           })
+          .filter(Boolean);
+
+        const lcAccount = accountToUse.toLowerCase();
+        const userTx = formatted.filter(
+          (tx) => tx.addressFrom === lcAccount || tx.addressTo === lcAccount
+        );
+        const sorted = userTx.sort(
+          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
         );
 
-        setTransactions(structuredTransactions);
-        return structuredTransactions;
+        setTransactions(sorted);
+        return sorted;
       } catch (error) {
         console.error("Error fetching transactions:", error);
+        toast.error("Failed to load your transactions", toastStyle.error);
         return [];
       }
     },
@@ -151,52 +170,36 @@ export const TransactionsProvider = ({ children }) => {
   const connectWallet = async () => {
     const connectingToast = toast.loading("Connecting wallet...", toastStyle);
     try {
-      // Check if we're on mobile
       const isMobile =
         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
           navigator.userAgent
         );
-
       if (!ethereum) {
         toast.dismiss(connectingToast);
-
         if (isMobile) {
-          // For mobile: Open MetaMask app or app store
           const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-          // Create deep links based on device
-          if (isIOS) {
-            window.location.href =
-              "https://metamask.app.link/dapp/" +
-              window.location.hostname +
-              window.location.pathname;
-          } else {
-            window.location.href = "https://metamask.io/download.html";
-          }
-
+          window.location.href = isIOS
+            ? `https://metamask.app.link/dapp/${window.location.hostname}${window.location.pathname}`
+            : "https://metamask.io/download.html";
           toast.error(
             "Please open this site in your wallet's browser",
             toastStyle.error
           );
-          return;
         } else {
           toast.error(
             "Please install an Ethereum wallet like MetaMask",
             toastStyle.error
           );
-          return;
         }
+        return;
       }
 
-      // Request wallet connection
       const accounts = await ethereum.request({
         method: "eth_requestAccounts",
       });
-
       if (accounts && accounts.length > 0) {
         setCurrentAccount(accounts[0]);
-        await getNetwork(); // Get and set the network
-
+        await getNetwork();
         toast.dismiss(connectingToast);
         toast.success(
           `Wallet connected: ${accounts[0].slice(0, 6)}...${accounts[0].slice(
@@ -204,32 +207,19 @@ export const TransactionsProvider = ({ children }) => {
           )}`,
           toastStyle.success
         );
-
-        try {
-          await getAllTransaction(accounts[0]);
-        } catch (error) {
-          console.error("Error fetching initial transactions:", error);
-        }
+        await getAllTransaction(accounts[0]);
       } else {
         toast.dismiss(connectingToast);
         toast.error("No accounts found or access denied", toastStyle.error);
       }
     } catch (error) {
-      console.error("Error connecting wallet:", error);
       toast.dismiss(connectingToast);
-
-      // Special handling for mobile connection errors
-      const userRejected =
-        error.code === 4001 || error.message?.includes("User rejected");
-
-      if (userRejected) {
-        toast.error("Connection rejected by user", toastStyle.error);
-      } else {
-        toast.error(
-          "Failed to connect wallet. Try opening in a wallet browser.",
-          toastStyle.error
-        );
-      }
+      const msg = getFriendlyError(
+        error,
+        "Failed to connect wallet. Please try again."
+      );
+      console.error("Error connecting wallet:", error);
+      toast.error(msg, toastStyle.error);
     }
   };
 
@@ -237,55 +227,38 @@ export const TransactionsProvider = ({ children }) => {
     let pendingToast;
     try {
       if (!ethereum) throw new Error("No ethereum object");
-
       const { addressTo, amount, keyword, message } = formData;
       if (!addressTo || !amount) {
         toast.error("Address and amount are required", toastStyle.error);
         throw new Error("Missing required fields");
       }
-
-      const transactionContract = await fetchTransactionContract();
+      const contract = await fetchTransactionContract();
       const parsedAmount = ethers.parseEther(amount);
-
-      // Show processing toast
       pendingToast = toast.loading("Processing transaction...", toastStyle);
-
-      // First send the transaction
-      const transactionParameters = {
+      const txParams = {
         to: addressTo,
         from: currentAccount,
-        gas: "0x5208", // 21000 gwei
+        gas: "0x5208",
         value: parsedAmount.toString(),
       };
-
       const txHash = await ethereum.request({
         method: "eth_sendTransaction",
-        params: [transactionParameters],
+        params: [txParams],
       });
-
       setLoading(true);
-
-      // Then add to blockchain
-      const transaction = await transactionContract.addToBlockchain(
+      const transaction = await contract.addToBlockchain(
         addressTo,
         parsedAmount,
         message,
         keyword
       );
-
       await transaction.wait();
-      // Update transaction count in localStorage directly
-      const transactionCount = await transactionContract.getTransactionCount();
-      window.localStorage.setItem(
-        "transactionCount",
-        transactionCount.toString()
-      );
-      setTransactionCount(Number(transactionCount));
-      await getAllTransaction(currentAccount); // Refresh transactions list
-
+      const count = await contract.getTransactionCount();
+      window.localStorage.setItem("transactionCount", count.toString());
+      setTransactionCount(Number(count));
+      await getAllTransaction(currentAccount);
       setLoading(false);
-      setFormData({ addressTo: "", amount: "", keyword: "", message: "" }); // Reset form
-
+      setFormData({ addressTo: "", amount: "", keyword: "", message: "" });
       toast.dismiss(pendingToast);
       toast.success(
         `${amount} ETH sent successfully to ${addressTo.slice(
@@ -294,16 +267,11 @@ export const TransactionsProvider = ({ children }) => {
         )}...${addressTo.slice(-4)}`,
         toastStyle.success
       );
-
       return txHash;
     } catch (error) {
-      console.error("Transaction error:", error);
       setLoading(false);
-
-      // Dismiss pending toast if it exists
       if (pendingToast) toast.dismiss(pendingToast);
-
-      // Show error message
+      console.error("Transaction error:", error);
       toast.error(error.message || "Transaction failed", toastStyle.error);
       throw error;
     }
@@ -314,20 +282,10 @@ export const TransactionsProvider = ({ children }) => {
       "Disconnecting wallet...",
       toastStyle
     );
-
     try {
-      // Clear local state
       setCurrentAccount(null);
       setTransactions([]);
-
-      // Reset form data
-      setFormData({
-        addressTo: "",
-        amount: "",
-        keyword: "",
-        message: "",
-      });
-
+      setFormData({ addressTo: "", amount: "", keyword: "", message: "" });
       toast.dismiss(disconnectToast);
       toast.success("Wallet disconnected", toastStyle.success);
     } catch (error) {
@@ -338,23 +296,19 @@ export const TransactionsProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // Listen for network changes
     if (ethereum) {
       const handleChainChanged = (chainId) => {
         const networkName =
           networkNames[chainId] || `Chain ID: ${parseInt(chainId, 16)}`;
         setCurrentNetwork(networkName);
         toast.success(`Network changed to ${networkName}`, toastStyle.success);
-
-        // Refresh page as recommended by MetaMask
         window.location.reload();
       };
 
       const handleAccountsChanged = (accounts) => {
         if (accounts.length > 0) {
           setCurrentAccount(accounts[0]);
-          getNetwork(); // Get the current network when account changes
-
+          getNetwork();
           toast.success(
             `Switched to account: ${accounts[0].slice(
               0,
@@ -364,7 +318,6 @@ export const TransactionsProvider = ({ children }) => {
           );
           getAllTransaction(accounts[0]);
         } else {
-          // User disconnected their wallet
           setCurrentAccount(null);
           setTransactions([]);
           toast.error("Wallet disconnected", toastStyle.error);
@@ -374,16 +327,14 @@ export const TransactionsProvider = ({ children }) => {
       ethereum.on("accountsChanged", handleAccountsChanged);
       ethereum.on("chainChanged", handleChainChanged);
 
-      // Initialize network and transaction count
       const initData = async () => {
         try {
           await getNetwork();
-          await checkIfTransacionsExist();
+          await checkIfTransactionsExist();
         } catch (error) {
           console.error("Init error:", error);
         }
       };
-
       initData();
 
       return () => {
@@ -414,4 +365,8 @@ export const TransactionsProvider = ({ children }) => {
       {children}
     </TransactionContext.Provider>
   );
+};
+
+TransactionsProvider.propTypes = {
+  children: PropTypes.node.isRequired,
 };
