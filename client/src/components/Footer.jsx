@@ -11,8 +11,7 @@ const Footer = () => {
     >
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-center">
-          {/* Logo and tagline */}
-          <div className="mb-6 md:mb-0">
+          <div className="mb-6 md:mb-0 text-center md:text-left">
             <h2 className="text-2xl font-bold">
               <span className="text-white">META</span>
               <span className="text-neutral-500">SECURE</span>
@@ -22,16 +21,17 @@ const Footer = () => {
             </p>
           </div>
 
-          {/* Minimal social links */}
           <div className="flex space-x-6">
             <a
-              href="#"
+              href="https://x.com/dejixice"
+              target="_blank"
               className="text-neutral-400 hover:text-white transition-colors"
             >
               Twitter
             </a>
             <a
-              href="#"
+              href="https://github.com/deji-ice/MetaSecure-web3.0"
+              target="_blank"
               className="text-neutral-400 hover:text-white transition-colors"
             >
               Github
