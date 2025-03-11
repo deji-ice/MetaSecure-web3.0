@@ -194,6 +194,9 @@ export const TransactionsProvider = ({ children }) => {
         return;
       }
 
+      // When user explicitly connects, we'll set auto-connect for next time
+      localStorage.setItem("autoConnectWallet", "true");
+
       const accounts = await ethereum.request({
         method: "eth_requestAccounts",
       });
@@ -277,7 +280,7 @@ export const TransactionsProvider = ({ children }) => {
     }
   };
 
-  const disconnectWallet = () => {
+  const disconnectWallet = async () => {
     const disconnectToast = toast.loading(
       "Disconnecting wallet...",
       toastStyle
@@ -289,22 +292,55 @@ export const TransactionsProvider = ({ children }) => {
       setCurrentNetwork(null);
       setFormData({ addressTo: "", amount: "", keyword: "", message: "" });
 
-      // Clear localStorage data if any
+      // Clear localStorage data including the auto-connect preference
       localStorage.removeItem("transactionCount");
+      localStorage.removeItem("walletConnected");
+      localStorage.removeItem("lastConnectedAccount");
+      localStorage.removeItem("autoConnectWallet"); // Clear auto-connect setting
 
-      // This will force the wallet to prompt for connection again next time
+      // Remove all event listeners
       if (ethereum && ethereum.removeAllListeners) {
-        ethereum.removeAllListeners();
+        ethereum.removeAllListeners("accountsChanged");
+        ethereum.removeAllListeners("chainChanged");
+        ethereum.removeAllListeners("disconnect");
+        ethereum.removeAllListeners("connect");
+      }
+
+      // This is a workaround to force MetaMask to "forget" the connection
+      if (ethereum && ethereum.request) {
+        try {
+          // Use multiple methods to ensure disconnection works
+          await ethereum.request({
+            method: "wallet_revokePermissions",
+            params: [{ eth_accounts: {} }],
+          });
+        } catch {
+          console.log(
+            "Permission revocation not supported, trying alternative method"
+          );
+          try {
+            // Try another approach that works with some wallets
+            await ethereum
+              .request({
+                method: "eth_requestAccounts",
+                params: [{ eth_accounts: {} }],
+              })
+              .then(() => ethereum._handleDisconnect());
+          } catch {
+            console.log(
+              "Alternative disconnect method failed, falling back to reload"
+            );
+          }
+        }
       }
 
       toast.dismiss(disconnectToast);
       toast.success("Wallet disconnected", toastStyle.success);
 
-      // Optional: Reload the page to ensure a clean state
-      // This helps when event listeners are causing issues
+      // Always reload the page to ensure a clean state
       setTimeout(() => {
         window.location.reload();
-      }, 1000);
+      }, 1500);
     } catch (error) {
       console.error("Error disconnecting wallet:", error);
       toast.dismiss(disconnectToast);
@@ -312,6 +348,49 @@ export const TransactionsProvider = ({ children }) => {
         "Failed to disconnect wallet. Try refreshing the page.",
         toastStyle.error
       );
+
+      // Even on error, force reload as last resort
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
+  };
+
+  const checkWalletConnection = async () => {
+    try {
+      if (!ethereum) return;
+
+      // IMPORTANT: Only try to reconnect if the user previously connected AND wants auto-connect
+      const shouldAutoConnect =
+        localStorage.getItem("autoConnectWallet") === "true";
+
+      // Skip ALL wallet interaction if auto-connect is disabled
+      if (!shouldAutoConnect) {
+        return;
+      }
+
+      // Use a non-prompting method to check for existing connections
+      // This should NEVER show a popup
+      const accounts = await ethereum.request({
+        method: "eth_accounts", // eth_accounts doesn't prompt, eth_requestAccounts does
+      });
+
+      if (accounts && accounts.length > 0) {
+        // Only set the account if we actually have one - no prompting
+        setCurrentAccount(accounts[0]);
+        localStorage.setItem("lastConnectedAccount", accounts[0]);
+        await getNetwork();
+        await getAllTransaction(accounts[0]);
+      } else {
+        // If we don't have accounts but autoConnect is true,
+        // the user has probably disconnected externally
+        // Clear our auto-connect setting to prevent future prompts
+        localStorage.removeItem("autoConnectWallet");
+      }
+    } catch (error) {
+      console.error("Error checking wallet connection:", error);
+      // Clear auto-connect on any error to prevent infinite prompt loops
+      localStorage.removeItem("autoConnectWallet");
     }
   };
 
@@ -328,6 +407,10 @@ export const TransactionsProvider = ({ children }) => {
       const handleAccountsChanged = (accounts) => {
         if (accounts.length > 0) {
           setCurrentAccount(accounts[0]);
+          // Save connection state when account changes
+          localStorage.setItem("walletConnected", "true");
+          localStorage.setItem("lastConnectedAccount", accounts[0]);
+
           getNetwork();
           toast.success(
             `Switched to account: ${accounts[0].slice(
@@ -338,6 +421,10 @@ export const TransactionsProvider = ({ children }) => {
           );
           getAllTransaction(accounts[0]);
         } else {
+          // Clear connection state when all accounts disconnected
+          localStorage.removeItem("walletConnected");
+          localStorage.removeItem("lastConnectedAccount");
+
           setCurrentAccount(null);
           setTransactions([]);
           toast.error("Wallet disconnected", toastStyle.error);
@@ -349,13 +436,21 @@ export const TransactionsProvider = ({ children }) => {
 
       const initData = async () => {
         try {
-          await getNetwork();
+          await checkWalletConnection();
           await checkIfTransactionsExist();
         } catch (error) {
           console.error("Init error:", error);
+          // Clear auto-connect on error
+          localStorage.removeItem("autoConnectWallet");
         }
       };
-      initData();
+
+      // Only run initialization if needed
+      const shouldAutoConnect =
+        localStorage.getItem("autoConnectWallet") === "true";
+      if (shouldAutoConnect) {
+        initData();
+      }
 
       return () => {
         ethereum.removeListener("accountsChanged", handleAccountsChanged);
