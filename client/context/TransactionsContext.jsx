@@ -283,15 +283,35 @@ export const TransactionsProvider = ({ children }) => {
       toastStyle
     );
     try {
+      // Clear all app state related to wallet connection
       setCurrentAccount(null);
       setTransactions([]);
+      setCurrentNetwork(null);
       setFormData({ addressTo: "", amount: "", keyword: "", message: "" });
+
+      // Clear localStorage data if any
+      localStorage.removeItem("transactionCount");
+
+      // This will force the wallet to prompt for connection again next time
+      if (ethereum && ethereum.removeAllListeners) {
+        ethereum.removeAllListeners();
+      }
+
       toast.dismiss(disconnectToast);
       toast.success("Wallet disconnected", toastStyle.success);
+
+      // Optional: Reload the page to ensure a clean state
+      // This helps when event listeners are causing issues
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (error) {
       console.error("Error disconnecting wallet:", error);
       toast.dismiss(disconnectToast);
-      toast.error("Failed to disconnect wallet", toastStyle.error);
+      toast.error(
+        "Failed to disconnect wallet. Try refreshing the page.",
+        toastStyle.error
+      );
     }
   };
 
