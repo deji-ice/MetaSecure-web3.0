@@ -92,18 +92,19 @@ const TransactionCard = ({ transaction }) => {
       </div>
 
       {/* Smaller GIF */}
-      {gifUrl && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.2 }}
-          className="relative rounded-lg overflow-hidden bg-black/20"
-        >
-          <img
-            src={gifUrl}
-            alt="transaction gif"
+   {/* Make sure to check if gifUrl exists before rendering */}
+   {gifUrl && (
+        <motion.div className="relative rounded-lg overflow-hidden bg-black/20">
+          <img 
+            src={gifUrl} 
+            alt="transaction gif" 
             className="w-full h-32 object-cover"
-            loading="lazy"
+            loading="lazy" 
+            // Add an onError handler as a fallback
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = "https://media4.popsugar-assets.com/files/2013/11/07/832/n/1922398/eb7a69a76543358d_28.gif";
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
           <div className="absolute bottom-2 right-2">
