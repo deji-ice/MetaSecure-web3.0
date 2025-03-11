@@ -276,7 +276,7 @@ const NavBar = () => {
       </motion.nav>
 
       {/* Testnet Banner  */}
-      <div className="fixed top-[60px] md:top-[70px] w-full z-40 bg-yellow-500 py-2 px-4 shadow-md">
+      <div className="fixed top-[60px] md:top-[75px] w-full z-40 bg-yellow-500 py-2 px-4 shadow-md">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-center text-center space-x-1 sm:space-x-2 text-black">
           <FaInfoCircle className="flex-shrink-0" />
           <p className="text-xs sm:text-sm font-medium">
